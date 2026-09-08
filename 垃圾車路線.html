@@ -97,6 +97,7 @@
   .dr-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:9px;}
   .dr-date{font-size:14px;font-weight:600;}
   .dr-time{color:var(--ink-faint);font-weight:400;font-family:'IBM Plex Mono',monospace;font-size:11.5px;}
+  .dr-address{color:var(--ink-soft);font-size:12.5px;margin:-3px 0 9px;}
   .today-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;background:var(--today-ring);color:var(--cta-text);padding:2px 8px;border-radius:999px;}
   .dr-count{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);padding:2px 8px;border-radius:999px;background:var(--surface-2);}
   .dr-count.full{background:var(--full-tint);color:var(--full-text);}
@@ -260,10 +261,12 @@ function render(rows){
         '<button class="btn primary add" type="button" data-act="fill" data-date="' + s.date + '" data-location="' + escapeAttr(s.location) + '" data-label="' + escapeAttr(s.dateLabel) + '">+ 填入姓名</button>';
       var timeHtml = (s.start && s.end) ? ('<span class="dr-time">' + s.start + '–' + s.end + '</span>') : '';
       var dateTimeHtml = singleDate ? '' : ('<span class="dr-date">' + escapeHtml(s.dateLabel) + '</span>' + timeHtml);
+      var addressHtml = s.address ? ('<div class="dr-address">📍 ' + escapeHtml(s.address) + '</div>') : '';
       return (
         '<div class="date-row' + (isToday ? ' is-today' : '') + '" id="row-' + escapeAttr(s.location) + '-' + s.date + '">' +
           '<div class="dr-head">' + dateTimeHtml + (isToday ? '<span class="today-badge">今天</span>' : '') +
             '<span class="dr-count' + (full ? ' full' : '') + '">' + count + '/4</span></div>' +
+          addressHtml +
           '<div class="name-list">' + chips + addBtn + '</div>' +
         '</div>'
       );
