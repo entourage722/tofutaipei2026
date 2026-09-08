@@ -98,6 +98,8 @@
   .dr-date{font-size:14px;font-weight:600;}
   .dr-time{color:var(--ink-faint);font-weight:400;font-family:'IBM Plex Mono',monospace;font-size:11.5px;}
   .dr-loc{font-size:11.5px;color:var(--ink-soft);background:var(--surface-2);padding:2px 9px;border-radius:999px;}
+  .dr-loc a{color:inherit;text-decoration:none;border-bottom:1px dashed var(--line-strong);}
+  .dr-loc a:hover{color:var(--cta);border-bottom-color:var(--cta);}
   .today-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;background:var(--today-ring);color:var(--cta-text);padding:2px 8px;border-radius:999px;}
   .dr-count{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);padding:2px 8px;border-radius:999px;background:var(--surface-2);}
   .dr-count.full{background:var(--full-tint);color:var(--full-text);}
@@ -288,7 +290,11 @@ function render(rows){
         '<button class="btn primary add" type="button" data-act="fill" data-date="' + targetRow.date + '" data-location="' + escapeAttr(targetRow.location) + '" data-label="' + escapeAttr(m.dateLabel) + '">+ 填入姓名</button>';
       var locs = [];
       rowsArr.forEach(function(rw){ if (rw.location && locs.indexOf(rw.location) === -1) locs.push(rw.location); });
-      var locHtml = locs.length ? ('<span class="dr-loc">📍' + escapeHtml(locs.join('、')) + '</span>') : '';
+      var locLinks = locs.map(function(loc){
+        var mapUrl = 'https://maps.google.com/?q=' + encodeURIComponent(loc);
+        return '<a href="' + mapUrl + '" target="_blank" rel="noopener">' + escapeHtml(loc) + '</a>';
+      }).join('、');
+      var locHtml = locs.length ? ('<span class="dr-loc">📍' + locLinks + '</span>') : '';
       var times = [];
       rowsArr.forEach(function(rw){
         if (rw.start && rw.end) {
@@ -307,7 +313,10 @@ function render(rows){
       );
     }).join('');
 
-    var dateLabels = g.dates.map(function(m){ return m.dateLabel; }).join('、');
+    var dateLabels = g.dates.map(function(m){
+      var t = m.timesJoined ? (' ' + m.timesJoined) : '';
+      return m.dateLabel + t;
+    }).join('、');
     var metaText = escapeHtml(dateLabels) + '・' + filledTotal + '/' + slotTotal + ' 已登記';
     return (
       '<details class="loc-card" id="loc-' + escapeAttr(g.title) + '" data-loc-name="' + escapeAttr(g.title) + '">' +
