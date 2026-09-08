@@ -198,16 +198,41 @@ function groupByTitle(rows){
   var map = {}, order = [];
   rows.forEach(function(r){
     var key = (r.title && String(r.title).trim()) || r.location;
-    if (!map[key]) { map[key] = { title:key, dates:[] }; order.push(key); }
+    if (!map[key]) { map[key] = { title:key, dates:[], minDate: r.date || '' }; order.push(key); }
     map[key].dates.push(r);
   });
-  order.sort(function(a,b){ return a.localeCompare(b, 'zh-Hant'); });
-  return order.map(function(key){
+
+  // 將 "9/7" 或 "2026-9-7" 中的單個數字補齊為雙位數 "09/07"，避免 ASCII/localeCompare 排序錯誤
+  var toSortableDate = function(dStr) {
+    if (!dStr) return '';
+    return dStr.replace(/\d+/g, function(num) {
+      return num.length === 1 ? '0' + num : num;
+    });
+  };
+
+  var groups = order.map(function(key){
     var g = map[key];
-    g.dates.sort(function(a,b){ return a.date.localeCompare(b.date); });
+    // 先對該活動內的所有日期排序
+    g.dates.sort(function(a, b){
+      return toSortableDate(a.date).localeCompare(toSortableDate(b.date));
+    });
+    // 確保 minDate 是該活動「最早」的那一個日期
+    if (g.dates.length > 0) {
+      g.minDate = g.dates[0].date || '';
+    }
     g.dates = mergeSameDate(g.dates);
     return g;
   });
+
+  // 依每個活動最早的日期排序（日期相同時再依活動名稱排序）
+  groups.sort(function(a, b){
+    var dateA = toSortableDate(a.minDate);
+    var dateB = toSortableDate(b.minDate);
+    if (dateA !== dateB) return dateA.localeCompare(dateB);
+    return a.title.localeCompare(b.title, 'zh-Hant');
+  });
+
+  return groups;
 }
 
 // 同一個活動、同一個日期如果在試算表裡有多列（例如報名人數超過單列上限時手動加的第二列），
@@ -271,7 +296,8 @@ function render(rows){
           if (times.indexOf(t) === -1) times.push(t);
         }
       });
-      var timeHtml = times.length ? ('<span class="dr-time">' + times.join('、') + '</span>') : '';
+      m.timesJoined = times.join('、');
+      var timeHtml = times.length ? ('<span class="dr-time">' + m.timesJoined + '</span>') : '';
       return (
         '<div class="date-row' + (isToday ? ' is-today' : '') + '" id="row-' + escapeAttr(rowsArr[0].location) + '-' + m.date + '">' +
           '<div class="dr-head"><span class="dr-date">' + escapeHtml(m.dateLabel) + '</span>' + locHtml + timeHtml + (isToday ? '<span class="today-badge">今天</span>' : '') +
