@@ -195,15 +195,41 @@ function setStatus(kind, text){
 function groupByLocation(rows){
   var map = {}, order = [];
   rows.forEach(function(r){
-    if (!map[r.location]) { map[r.location] = { location:r.location, dates:[] }; order.push(r.location); }
+    if (!map[r.location]) {
+      map[r.location] = { location: r.location, dates: [], minDate: r.date || '' };
+      order.push(r.location);
+    }
     map[r.location].dates.push(r);
   });
-  order.sort(function(a,b){ return a.localeCompare(b, 'zh-Hant'); });
-  return order.map(function(loc){
+
+  // 將 "9/7" 或 "2026-9-7" 中的單個數字補齊為雙位數 "09/07"，避免 ASCII/localeCompare 排序錯誤
+  var toSortableDate = function(dStr) {
+    if (!dStr) return '';
+    return dStr.replace(/\d+/g, function(num) {
+      return num.length === 1 ? '0' + num : num;
+    });
+  };
+
+  var groups = order.map(function(loc){
     var g = map[loc];
-    g.dates.sort(function(a,b){ return a.date.localeCompare(b.date); });
+    g.dates.sort(function(a, b){
+      return toSortableDate(a.date).localeCompare(toSortableDate(b.date));
+    });
+    if (g.dates.length > 0) {
+      g.minDate = g.dates[0].date || '';
+    }
     return g;
   });
+
+  // 依每個站點最早的排班日期排序（日期相同時再依站點名稱排序，避免順序不穩定）
+  groups.sort(function(a, b) {
+    var dateA = toSortableDate(a.minDate);
+    var dateB = toSortableDate(b.minDate);
+    if (dateA !== dateB) return dateA.localeCompare(dateB);
+    return a.location.localeCompare(b.location, 'zh-Hant');
+  });
+
+  return groups;
 }
 
 function render(rows){
@@ -217,6 +243,7 @@ function render(rows){
 
   locsEl.innerHTML = locs.map(function(loc){
     var filledTotal = 0, slotTotal = 0, hasToday = false;
+    var singleDate = loc.dates.length === 1;
     var dateRows = loc.dates.map(function(s){
       var names = s.names || [];
       var filled = names.filter(function(n){ return n && String(n).trim(); });
@@ -232,16 +259,20 @@ function render(rows){
       var addBtn = full ? '' :
         '<button class="btn primary add" type="button" data-act="fill" data-date="' + s.date + '" data-location="' + escapeAttr(s.location) + '" data-label="' + escapeAttr(s.dateLabel) + '">+ 填入姓名</button>';
       var timeHtml = (s.start && s.end) ? ('<span class="dr-time">' + s.start + '–' + s.end + '</span>') : '';
+      var dateTimeHtml = singleDate ? '' : ('<span class="dr-date">' + escapeHtml(s.dateLabel) + '</span>' + timeHtml);
       return (
         '<div class="date-row' + (isToday ? ' is-today' : '') + '" id="row-' + escapeAttr(s.location) + '-' + s.date + '">' +
-          '<div class="dr-head"><span class="dr-date">' + escapeHtml(s.dateLabel) + '</span>' + timeHtml + (isToday ? '<span class="today-badge">今天</span>' : '') +
+          '<div class="dr-head">' + dateTimeHtml + (isToday ? '<span class="today-badge">今天</span>' : '') +
             '<span class="dr-count' + (full ? ' full' : '') + '">' + count + '/4</span></div>' +
           '<div class="name-list">' + chips + addBtn + '</div>' +
         '</div>'
       );
     }).join('');
 
-    var dateLabels = loc.dates.map(function(s){ return s.dateLabel; }).join('、');
+    var dateLabels = loc.dates.map(function(s){
+      var t = (s.start && s.end) ? (' ' + s.start + '–' + s.end) : '';
+      return s.dateLabel + t;
+    }).join('、');
     var metaText = escapeHtml(dateLabels) + '・' + filledTotal + '/' + slotTotal + ' 已登記';
     return (
       '<details class="loc-card" id="loc-' + escapeAttr(loc.location) + '" data-loc-name="' + escapeAttr(loc.location) + '">' +
