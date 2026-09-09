@@ -135,7 +135,7 @@
 
   <header class="hero">
     <h1>大型活動</h1>
-    <p>先找到活動名稱，點開即可看到該活動的日期與地點。每個日期最多 30 人，點「+ 填入姓名」登記，填錯可點姓名旁的 × 取消。</p>
+    <p>先找到活動名稱，點開即可看到該活動的日期與地點。每個日期的名額上限依試算表設定（未設定則預設 30 人），點「+ 填入姓名」登記，填錯可點姓名旁的 × 取消。</p>
   </header>
 
   <div id="statusBar" class="status-bar"><span class="status-dot"></span><span id="statusText">連線中…</span></div>
@@ -167,7 +167,7 @@
 // ==== Google Apps Script 網頁應用程式 URL ====
 var API_URL = 'https://script.google.com/macros/s/AKfycbzMlU1JFPs0-dbhXBBsJXsyyuuiCp09DKaJLitV1QpNe9a0L1mR9Ub2s2tTGhd5xgrGDg/exec';
 var SHIFT_TYPE = 'event';
-var MAX_SLOTS = 30; // 大型活動最多可登記 30 人
+var MAX_SLOTS = 30; // 預設名額上限（後端未回傳 capacity，或試算表該列「人數上限」欄留空時使用；姓名欄位實體上限仍是 30 個）
 // ==============================================
 
 var statusBar = document.getElementById('statusBar');
@@ -269,10 +269,11 @@ function render(rows){
         });
       });
       var count = named.length;
-      var rowSlotTotal = MAX_SLOTS * rowsArr.length;
+      var rowSlotTotal = rowsArr.reduce(function(sum, rw){ return sum + (rw.capacity || MAX_SLOTS); }, 0);
       var full = rowsArr.every(function(rw){
+        var cap = rw.capacity || MAX_SLOTS;
         var f = (rw.names || []).filter(function(n){ return n && String(n).trim(); }).length;
-        return f >= MAX_SLOTS;
+        return f >= cap;
       });
       filledTotal += count; slotTotal += rowSlotTotal;
       var isToday = m.date === today;
@@ -283,8 +284,9 @@ function render(rows){
       }).join('');
       var targetRow = null;
       for (var i = 0; i < rowsArr.length; i++) {
+        var cap2 = rowsArr[i].capacity || MAX_SLOTS;
         var f2 = (rowsArr[i].names || []).filter(function(n){ return n && String(n).trim(); }).length;
-        if (f2 < MAX_SLOTS) { targetRow = rowsArr[i]; break; }
+        if (f2 < cap2) { targetRow = rowsArr[i]; break; }
       }
       var addBtn = !targetRow ? '' :
         '<button class="btn primary add" type="button" data-act="fill" data-date="' + targetRow.date + '" data-location="' + escapeAttr(targetRow.location) + '" data-label="' + escapeAttr(m.dateLabel) + '">+ 填入姓名</button>';
@@ -470,7 +472,7 @@ function submitAction(payload, btnEl){
     .then(function(data){
       if (!data.ok) {
         var msg = '操作失敗';
-        if (data.error === 'full') msg = '這個時段已經額滿（' + MAX_SLOTS + '/' + MAX_SLOTS + '），畫面已更新';
+        if (data.error === 'full') msg = '這個時段已經額滿，畫面已更新';
         else if (data.error === 'name_mismatch') msg = '這筆登記不是這個姓名，無法取消';
         else if (data.error === 'busy_try_again') msg = '系統忙碌，請稍後再試一次';
         else if (data.error === 'not_found') msg = '找不到這個日期與地點的排班列，請確認試算表';
