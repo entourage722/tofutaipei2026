@@ -218,19 +218,28 @@ function groupByTitle(rows){
     g.dates.sort(function(a, b){
       return toSortableDate(a.date).localeCompare(toSortableDate(b.date));
     });
-    // 確保 minDate 是該活動「最早」的那一個日期
+    // 確保 minDate 是該活動「最早」的那一個日期，minTime 是該日期裡最早的開始時間
     if (g.dates.length > 0) {
       g.minDate = g.dates[0].date || '';
+      var earliestTimes = g.dates
+        .filter(function(r){ return r.date === g.minDate; })
+        .map(function(r){ return r.start || ''; })
+        .filter(function(t){ return t; })
+        .sort();
+      g.minTime = earliestTimes.length ? earliestTimes[0] : '';
     }
     g.dates = mergeSameDate(g.dates);
     return g;
   });
 
-  // 依每個活動最早的日期排序（日期相同時再依活動名稱排序）
+  // 依每個活動最早的日期排序；日期相同時再依當天最早的開始時間排序；時間也相同才依活動名稱排序
   groups.sort(function(a, b){
     var dateA = toSortableDate(a.minDate);
     var dateB = toSortableDate(b.minDate);
     if (dateA !== dateB) return dateA.localeCompare(dateB);
+    var timeA = a.minTime || '';
+    var timeB = b.minTime || '';
+    if (timeA !== timeB) return timeA.localeCompare(timeB);
     return a.title.localeCompare(b.title, 'zh-Hant');
   });
 
