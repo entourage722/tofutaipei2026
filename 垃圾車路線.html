@@ -135,7 +135,7 @@
 
   <header class="hero">
     <h1>垃圾車路線</h1>
-    <p>先找到站點，點開即可看到該站點的排班日期。每個日期最多 4 人，點「+ 填入姓名」登記，填錯可點姓名旁的 × 取消。</p>
+    <p>先找到站點，點開即可看到該站點的排班日期。每個日期的名額上限依試算表設定（未設定則預設 4 人），點「+ 填入姓名」登記，填錯可點姓名旁的 × 取消。</p>
   </header>
 
   <div id="statusBar" class="status-bar"><span class="status-dot"></span><span id="statusText">連線中…</span></div>
@@ -167,6 +167,7 @@
 // ==== Google Apps Script 網頁應用程式 URL ====
 var API_URL = 'https://script.google.com/macros/s/AKfycbzMlU1JFPs0-dbhXBBsJXsyyuuiCp09DKaJLitV1QpNe9a0L1mR9Ub2s2tTGhd5xgrGDg/exec';
 var SHIFT_TYPE = 'garbage';
+var MAX_SLOTS = 4; // 預設名額上限（後端未回傳 capacity，或試算表該列「人數上限」欄留空時使用；姓名欄位實體上限仍是 4 個）
 // ==============================================
 
 var statusBar = document.getElementById('statusBar');
@@ -251,8 +252,9 @@ function render(rows){
       var names = s.names || [];
       var filled = names.filter(function(n){ return n && String(n).trim(); });
       var count = filled.length;
-      var full = count >= 4;
-      filledTotal += count; slotTotal += 4;
+      var cap = s.capacity || MAX_SLOTS;
+      var full = count >= cap;
+      filledTotal += count; slotTotal += cap;
       var isToday = s.date === today;
       if (isToday) hasToday = true;
       var chips = filled.map(function(n){
@@ -269,7 +271,7 @@ function render(rows){
       return (
         '<div class="date-row' + (isToday ? ' is-today' : '') + '" id="row-' + escapeAttr(s.location) + '-' + s.date + '">' +
           '<div class="dr-head">' + dateTimeHtml + (isToday ? '<span class="today-badge">今天</span>' : '') +
-            '<span class="dr-count' + (full ? ' full' : '') + '">' + count + '/4</span></div>' +
+            '<span class="dr-count' + (full ? ' full' : '') + '">' + count + '/' + cap + '</span></div>' +
           addressHtml +
           '<div class="name-list">' + chips + addBtn + '</div>' +
         '</div>'
@@ -433,7 +435,7 @@ function submitAction(payload, btnEl){
     .then(function(data){
       if (!data.ok) {
         var msg = '操作失敗';
-        if (data.error === 'full') msg = '這個站點已經額滿（4/4），畫面已更新';
+        if (data.error === 'full') msg = '這個站點已經額滿，畫面已更新';
         else if (data.error === 'name_mismatch') msg = '這筆登記不是這個姓名，無法取消';
         else if (data.error === 'busy_try_again') msg = '系統忙碌，請稍後再試一次';
         else if (data.error === 'not_found') msg = '找不到這個日期與站點的排班列，請確認試算表';

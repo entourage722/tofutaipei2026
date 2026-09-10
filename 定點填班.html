@@ -252,6 +252,24 @@
       font-weight: bold;
     }
 
+    .dr-address {
+      font-size: 12.5px;
+      margin: -4px 0 8px;
+    }
+
+    .dr-address a {
+      color: var(--primary);
+      text-decoration: underline;
+    }
+
+    .dr-address a::after {
+      content: ' ↗';
+    }
+
+    .dr-address a:hover {
+      color: var(--primary-hover);
+    }
+
     .dr-count {
       margin-left: auto;
       font-size: 12px;
@@ -507,10 +525,14 @@
             '<button class="btn primary add" type="button" data-act="fill" data-date="' + s.date + '" data-location="' + escapeAttr(s.location) + '" data-label="' + escapeAttr(s.dateLabel) + '">+ 填入姓名</button>';
           var timeHtml = (s.start && s.end) ? ('<span class="dr-time">' + s.start + '–' + s.end + '</span>') : '';
           var dateTimeHtml = singleDate ? '' : ('<span class="dr-date">' + escapeHtml(s.dateLabel) + '</span>' + timeHtml);
+          var mapQuery = s.address || loc.location;
+          var mapUrl = 'https://maps.google.com/?q=' + encodeURIComponent(mapQuery);
+          var addressHtml = '<div class="dr-address"><a href="' + mapUrl + '" target="_blank" rel="noopener">📍 ' + escapeHtml(s.address || loc.location) + '</a></div>';
           return (
             '<div class="date-row' + (isToday ? ' is-today' : '') + '" id="row-' + escapeAttr(s.location) + '-' + s.date + '">' +
               '<div class="dr-head">' + dateTimeHtml + (isToday ? '<span class="today-badge">今天</span>' : '') +
                 '<span class="dr-count' + (full ? ' full' : '') + '">' + count + '/4</span></div>' +
+              addressHtml +
               '<div class="name-list">' + chips + addBtn + '</div>' +
             '</div>'
           );
