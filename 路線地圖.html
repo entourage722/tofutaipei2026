@@ -225,8 +225,26 @@
     {date:'9/9',  wd:'三', stops:[{shift:'早班',zone:'東社'},  {shift:'中班',zone:'本鎮'},  {shift:'晚班',zone:'三民'}]},
     {date:'9/10', wd:'四', stops:[{shift:'早班',zone:'三張犁'},{shift:'中班',zone:'五分埔'},{shift:'晚班',zone:'中崙'}]},
     {date:'9/11', wd:'五', stops:[{shift:'早班',zone:'吳興'},  {shift:'中班',zone:'六張犁'},{shift:'晚班',zone:'福德'}]},
-    {date:'9/12', wd:'六', stops:[{shift:'早班',zone:'三民'},  {shift:'中班',zone:'東社'},  {shift:'晚班',zone:'本鎮'}]}
+    {date:'9/12', wd:'六', stops:[{shift:'早班',zone:'三民'},  {shift:'中班',zone:'東社'},  {shift:'晚班',zone:'本鎮'}]},
+    {date:'9/13', wd:'日', stops:[{shift:'早班',zone:'中崙'},  {shift:'中班',zone:'三張犁'},{shift:'晚班',zone:'五分埔'}]},
+    {date:'9/14', wd:'一', stops:[{shift:'早班',zone:'福德'},  {shift:'中班',zone:'吳興'},  {shift:'晚班',zone:'六張犁'}]},
+    {date:'9/15', wd:'二', stops:[{shift:'早班',zone:'本鎮'},  {shift:'中班',zone:'三民'},  {shift:'晚班',zone:'東社'}]},
+    {date:'9/16', wd:'三', stops:[{shift:'早班',zone:'五分埔'},{shift:'中班',zone:'中崙'},  {shift:'晚班',zone:'三張犁'}]}
   ];
+
+  // 只顯示今天以及之後的日期，已經過的日期不再顯示於日期列
+  (function(){
+    var y = 2026; // 本班表為 2026 年 9 月，固定年份以正確比較日期
+    function scheduleDateObj(d){
+      var parts = d.date.split('/');
+      return new Date(y, parseInt(parts[0],10)-1, parseInt(parts[1],10));
+    }
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    var upcoming = SCHEDULE.filter(function(d){ return scheduleDateObj(d).getTime() >= today.getTime(); });
+    // 若目前排班表所列日期全部都已經過（例如班表尚未延長），保留最後一天避免頁面空白
+    SCHEDULE = upcoming.length ? upcoming : SCHEDULE.slice(-1);
+  })();
 
   var mapPin = '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1c-3.3 0-6 2.6-6 6 0 4.4 6 12 6 12s6-7.6 6-12c0-3.4-2.7-6-6-6zm0 8.3A2.3 2.3 0 1 1 10 4.7a2.3 2.3 0 0 1 0 4.6z"/></svg>';
 
