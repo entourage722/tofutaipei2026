@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>掃商圈 — 許甫志工團</title>
+<meta name="description" content="掃商圈排班登記，依地點查看掃商圈日期並填寫姓名">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    color-scheme: light;
+    --bg:#F0F2EA;
+    --surface:#FFFFFF;
+    --surface-2:#E7EBDF;
+    --ink:#1D2118;
+    --ink-soft:#565F4C;
+    --ink-faint:#8A9179;
+    --line:#C3CAB4;
+    --line-strong:#9FA88C;
+    --cta:#2a5c4a;
+    --cta-text:#F4F7F1;
+    --radius-lg:20px;
+    --radius-md:14px;
+    --radius-sm:9px;
+    --shadow: 0 1px 2px rgba(29,33,24,0.06), 0 10px 28px -14px rgba(29,33,24,0.28);
+    --danger:#B3432B;
+    --today-ring:#2a5c4a;
+    --full-tint:#DDEBD9;
+    --full-text:#2a5c4a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --bg:#14160F; --surface:#1B1E15; --surface-2:#242818;
+      --ink:#ECEEE3; --ink-soft:#B7BEA6; --ink-faint:#7C8468;
+      --line:#3A4030; --line-strong:#4E5740;
+      --cta:#3FA080; --cta-text:#0E1410;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px -14px rgba(0,0,0,0.6);
+      --danger:#D9714F;
+      --today-ring:#3FA080;
+      --full-tint:#1E3327; --full-text:#7FD9B4;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg:#14160F; --surface:#1B1E15; --surface-2:#242818;
+    --ink:#ECEEE3; --ink-soft:#B7BEA6; --ink-faint:#7C8468;
+    --line:#3A4030; --line-strong:#4E5740;
+    --cta:#3FA080; --cta-text:#0E1410;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px -14px rgba(0,0,0,0.6);
+    --danger:#D9714F;
+    --today-ring:#3FA080;
+    --full-tint:#1E3327; --full-text:#7FD9B4;
+  }
+
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;}
+  .page{max-width:760px;margin:0 auto;padding:28px 20px 90px;}
+  h1,h2{font-family:'Noto Serif TC','Songti TC',serif;font-weight:700;margin:0;text-wrap:balance;}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,'SF Mono',monospace;}
+  a{color:inherit;}
+
+  header.hero{display:flex;flex-direction:column;gap:8px;margin-bottom:22px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);}
+  header.hero h1{font-size:clamp(22px,3.4vw,30px);}
+  header.hero p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.6;}
+  .back-link{font-size:13px;color:var(--ink-faint);text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-bottom:6px;}
+  .back-link:hover{color:var(--ink);}
+
+  .status-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--radius-sm);background:var(--surface-2);color:var(--ink-soft);font-size:13px;margin-bottom:16px;min-height:20px;}
+  .status-bar.err{background:rgba(179,67,43,0.12);color:var(--danger);}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--ink-faint);flex:0 0 auto;}
+  .status-bar.ok .status-dot{background:var(--cta);}
+  .status-bar.err .status-dot{background:var(--danger);}
+
+  .search-wrap{margin-bottom:18px;}
+  .search-input{width:100%;font-family:inherit;font-size:14px;border:1px solid var(--line-strong);border-radius:999px;padding:10px 16px;background:var(--surface);color:var(--ink);}
+  .search-input:focus{outline:none;border-color:var(--cta);}
+  .search-input::placeholder{color:var(--ink-faint);}
+
+  .loc-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow);margin-bottom:12px;scroll-margin-top:16px;overflow:hidden;}
+  .loc-card[open]{border-color:var(--line-strong);}
+  .loc-card summary{list-style:none;cursor:pointer;padding:15px 18px;display:flex;align-items:center;gap:12px;}
+  .loc-card summary::-webkit-details-marker{display:none;}
+  .loc-card summary .chev{flex:0 0 auto;font-size:12px;color:var(--ink-faint);transition:transform .15s ease;}
+  .loc-card[open] summary .chev{transform:rotate(90deg);}
+  .loc-title-wrap{flex:1 1 auto;min-width:0;}
+  .loc-title{font-family:'Noto Serif TC',serif;font-weight:700;font-size:15.5px;}
+  .loc-meta{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-faint);margin-top:2px;}
+  .loc-meta.has-today{color:var(--today-ring);}
+  .loc-body{padding:0 18px 16px;}
+
+  .date-row{padding:12px 0;border-top:1px solid var(--line);}
+  .date-row:first-of-type{border-top:none;}
+  .date-row.is-today{background:linear-gradient(90deg, rgba(42,92,74,0.06), transparent);margin:0 -18px;padding:12px 18px;border-radius:10px;}
+  .dr-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:9px;}
+  .dr-date{font-size:14px;font-weight:600;}
+  .dr-time{color:var(--ink-faint);font-weight:400;font-family:'IBM Plex Mono',monospace;font-size:11.5px;}
+  .dr-address{color:var(--ink-soft);font-size:12.5px;margin:-3px 0 9px;}
+  .dr-address a{color:var(--cta);text-decoration:underline;text-underline-offset:2px;}
+  .dr-address a:hover{opacity:.8;}
+  .dr-address a::after{content:' ↗';font-size:11px;}
+  .today-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.06em;background:var(--today-ring);color:var(--cta-text);padding:2px 8px;border-radius:999px;}
+  .dr-count{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-faint);padding:2px 8px;border-radius:999px;background:var(--surface-2);}
+  .dr-count.full{background:var(--full-tint);color:var(--full-text);}
+
+  .name-list{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .claimed-name{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;padding:6px 8px 6px 12px;border-radius:999px;background:var(--surface-2);}
+  .btn{font-family:inherit;font-size:13px;font-weight:600;border-radius:999px;padding:7px 15px;cursor:pointer;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);}
+  .btn:hover{border-color:var(--ink-soft);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn.primary{background:var(--cta);color:var(--cta-text);border-color:var(--cta);}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--ink-faint);padding:3px 8px;font-size:15px;line-height:1;}
+  .btn.ghost:hover{color:var(--danger);}
+  .btn.add{padding:7px 14px;}
+
+  dialog.modal{border:none;border-radius:var(--radius-md);padding:0;background:var(--surface);color:var(--ink);box-shadow:var(--shadow);max-width:300px;width:90%;}
+  dialog.modal::backdrop{background:rgba(0,0,0,0.4);}
+  .modal-body{padding:18px 20px;}
+  .modal-body h3{font-family:'Noto Serif TC',serif;font-size:16px;margin:0 0 10px;}
+  .modal-body p{font-size:13px;color:var(--ink-soft);margin:0 0 14px;line-height:1.6;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;}
+
+  .jump-today{position:fixed;right:20px;bottom:20px;font-family:inherit;font-size:13px;font-weight:600;border-radius:999px;padding:11px 18px;cursor:pointer;border:1px solid var(--cta);background:var(--cta);color:var(--cta-text);box-shadow:var(--shadow);}
+
+  .empty-state{text-align:center;color:var(--ink-faint);font-size:13.5px;padding:40px 20px;}
+
+  footer{margin-top:24px;font-size:12px;color:var(--ink-faint);text-align:center;}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back-link" href="./index.html">← 回首頁</a>
+
+  <header class="hero">
+    <h1>掃商圈</h1>
+    <p>先找到地點，點開即可看到該地點的掃商圈日期。點「+ 填入姓名」登記，填錯可點姓名旁的 × 取消。每個時段的名額依現場人數上限而定，額滿後該時段會自動關閉登記。</p>
+  </header>
+
+  <div id="statusBar" class="status-bar"><span class="status-dot"></span><span id="statusText">連線中…</span></div>
+
+  <div class="search-wrap">
+    <input type="text" id="locSearch" class="search-input" placeholder="🔍 搜尋地點名稱…">
+  </div>
+
+  <div id="locs"></div>
+
+  <footer>資料即時同步至 Google 試算表・多人共用同一連結</footer>
+</div>
+
+<button class="jump-today" id="jumpToday" type="button" hidden>回到今天</button>
+
+<dialog id="fillDialog" class="modal">
+  <form method="dialog" class="modal-body" id="fillForm">
+    <h3 id="fillTitle">填入姓名</h3>
+    <p id="fillSub"></p>
+    <input type="text" id="fillName" placeholder="填入姓名" maxlength="20" style="width:100%;font-family:inherit;font-size:14px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:9px 12px;background:var(--surface);color:var(--ink);margin-bottom:14px;">
+    <div class="modal-actions">
+      <button type="button" class="btn" id="fillCancel">取消</button>
+      <button type="submit" class="btn primary" id="fillConfirm">確認</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+// ==== Google Apps Script 網頁應用程式 URL ====
+var API_URL = 'https://script.google.com/macros/s/AKfycbzMlU1JFPs0-dbhXBBsJXsyyuuiCp09DKaJLitV1QpNe9a0L1mR9Ub2s2tTGhd5xgrGDg/exec';
+var SHIFT_TYPE = 'district';
+// ==============================================
+
+var statusBar = document.getElementById('statusBar');
+var statusText = document.getElementById('statusText');
+var locsEl = document.getElementById('locs');
+var locSearch = document.getElementById('locSearch');
+var dialog = document.getElementById('fillDialog');
+var fillForm = document.getElementById('fillForm');
+var fillTitle = document.getElementById('fillTitle');
+var fillSub = document.getElementById('fillSub');
+var fillName = document.getElementById('fillName');
+var fillCancel = document.getElementById('fillCancel');
+var jumpTodayBtn = document.getElementById('jumpToday');
+
+var pendingRow = null; // {date, location}
+
+function todayIso(){
+  var d = new Date();
+  var m = String(d.getMonth()+1).padStart(2,'0');
+  var day = String(d.getDate()).padStart(2,'0');
+  return d.getFullYear() + '-' + m + '-' + day;
+}
+
+function setStatus(kind, text){
+  statusBar.className = 'status-bar' + (kind ? ' ' + kind : '');
+  statusText.textContent = text;
+}
+
+function rowCapacity(s){
+  var names = s.names || [];
+  var cap = parseInt(s.capacity, 10);
+  if (!(cap >= 1)) cap = names.length || 4;
+  if (cap > names.length && names.length) cap = names.length;
+  return cap;
+}
+
+function groupByLocation(rows){
+  var map = {}, order = [];
+  rows.forEach(function(r){
+    if (!map[r.location]) {
+      map[r.location] = { location: r.location, dates: [], minDate: r.date || '' };
+      order.push(r.location);
+    }
+    map[r.location].dates.push(r);
+  });
+
+  // 將 "9/7" 或 "2026-9-7" 中的單個數字補齊為雙位數 "09/07"，避免 ASCII/localeCompare 排序錯誤
+  var toSortableDate = function(dStr) {
+    if (!dStr) return '';
+    return dStr.replace(/\d+/g, function(num) {
+      return num.length === 1 ? '0' + num : num;
+    });
+  };
+
+  var groups = order.map(function(loc){
+    var g = map[loc];
+    g.dates.sort(function(a, b){
+      return toSortableDate(a.date).localeCompare(toSortableDate(b.date));
+    });
+    if (g.dates.length > 0) {
+      g.minDate = g.dates[0].date || '';
+    }
+    return g;
+  });
+
+  // 依每個地點最早的掃商圈日期排序（日期相同時再依地點名稱排序，避免順序不穩定）
+  groups.sort(function(a, b) {
+    var dateA = toSortableDate(a.minDate);
+    var dateB = toSortableDate(b.minDate);
+    if (dateA !== dateB) return dateA.localeCompare(dateB);
+    return a.location.localeCompare(b.location, 'zh-Hant');
+  });
+
+  return groups;
+}
+
+function render(rows){
+  if (!rows.length) {
+    locsEl.innerHTML = '<div class="empty-state">目前試算表中尚未建立任何掃商圈排班列</div>';
+    jumpTodayBtn.hidden = true;
+    return;
+  }
+  var today = todayIso();
+  var locs = groupByLocation(rows);
+
+  locsEl.innerHTML = locs.map(function(loc){
+    var filledTotal = 0, slotTotal = 0, hasToday = false;
+    var singleDate = loc.dates.length === 1;
+    var dateRows = loc.dates.map(function(s){
+      var cap = rowCapacity(s);
+      var names = (s.names || []).slice(0, cap);
+      var filled = names.filter(function(n){ return n && String(n).trim(); });
+      var count = filled.length;
+      var full = count >= cap;
+      filledTotal += count; slotTotal += cap;
+      var isToday = s.date === today;
+      if (isToday) hasToday = true;
+      var chips = filled.map(function(n){
+        return '<span class="claimed-name">' + escapeHtml(n) +
+          '<button class="btn ghost" type="button" data-act="clear" data-date="' + s.date + '" data-location="' + escapeAttr(s.location) + '" data-name="' + escapeAttr(n) + '" aria-label="取消 ' + escapeAttr(n) + '">×</button></span>';
+      }).join('');
+      var addBtn = full ? '' :
+        '<button class="btn primary add" type="button" data-act="fill" data-date="' + s.date + '" data-location="' + escapeAttr(s.location) + '" data-label="' + escapeAttr(s.dateLabel) + '">+ 填入姓名</button>';
+      var timeHtml = (s.start && s.end) ? ('<span class="dr-time">' + s.start + '–' + s.end + '</span>') : '';
+      var dateTimeHtml = singleDate ? '' : ('<span class="dr-date">' + escapeHtml(s.dateLabel) + '</span>' + timeHtml);
+      var mapQuery = s.address || loc.location;
+      var mapUrl = 'https://maps.google.com/?q=' + encodeURIComponent(mapQuery);
+      var addressHtml = '<div class="dr-address"><a href="' + mapUrl + '" target="_blank" rel="noopener">📍 ' + escapeHtml(s.address || loc.location) + '</a></div>';
+      return (
+        '<div class="date-row' + (isToday ? ' is-today' : '') + '" id="row-' + escapeAttr(s.location) + '-' + s.date + '">' +
+          '<div class="dr-head">' + dateTimeHtml + (isToday ? '<span class="today-badge">今天</span>' : '') +
+            '<span class="dr-count' + (full ? ' full' : '') + '">' + count + '/' + cap + '</span></div>' +
+          addressHtml +
+          '<div class="name-list">' + chips + addBtn + '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    var dateLabels = loc.dates.map(function(s){
+      var t = (s.start && s.end) ? (' ' + s.start + '–' + s.end) : '';
+      return s.dateLabel + t;
+    }).join('、');
+    var metaText = escapeHtml(dateLabels) + '・' + filledTotal + '/' + slotTotal + ' 已登記';
+    return (
+      '<details class="loc-card" id="loc-' + escapeAttr(loc.location) + '" data-loc-name="' + escapeAttr(loc.location) + '">' +
+        '<summary>' +
+          '<span class="chev">▶</span>' +
+          '<span class="loc-title-wrap"><span class="loc-title">' + escapeHtml(loc.location) + '</span>' +
+          '<div class="loc-meta' + (hasToday ? ' has-today' : '') + '">' + metaText + (hasToday ? '・含今天' : '') + '</div></span>' +
+        '</summary>' +
+        '<div class="loc-body">' + dateRows + '</div>' +
+      '</details>'
+    );
+  }).join('');
+
+  jumpTodayBtn.hidden = !hasAnyToday(rows, today);
+}
+
+function hasAnyToday(rows, today){
+  return rows.some(function(r){ return r.date === today; });
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function escapeAttr(s){ return escapeHtml(s); }
+
+var lastRows = [];
+var CACHE_KEY = 'district_fillshift_cache_v1';
+
+function readCache(){
+  try {
+    var raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    var parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.rows)) return null;
+    return parsed;
+  } catch (e) { return null; }
+}
+
+function writeCache(rows){
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ rows: rows, ts: Date.now() }));
+  } catch (e) { /* ignore, e.g. private mode */ }
+}
+
+function applySearchFilter(){
+  var q = locSearch.value.trim();
+  var cards = locsEl.querySelectorAll('.loc-card');
+  cards.forEach(function(card){
+    var name = card.getAttribute('data-loc-name') || '';
+    var match = !q || name.indexOf(q) !== -1;
+    card.hidden = !match;
+    if (match && q) card.open = true;
+  });
+}
+
+locSearch.addEventListener('input', applySearchFilter);
+
+function jumpToToday(){
+  var today = todayIso();
+  var row = null;
+  var rows = locsEl.querySelectorAll('.date-row.is-today');
+  if (rows.length) row = rows[0];
+  if (!row) return;
+  var card = row.closest('.loc-card');
+  if (card) card.open = true;
+  row.scrollIntoView({ block:'center', behavior:'smooth' });
+}
+
+function loadData(){
+  var cached = readCache();
+  var slowTimer = null;
+
+  if (cached) {
+    lastRows = cached.rows;
+    render(lastRows);
+    setStatus('', '正在更新最新資料…');
+  } else {
+    setStatus('', '載入中…');
+    slowTimer = setTimeout(function(){
+      setStatus('', '連線 Google 試算表中，請再稍候…');
+    }, 3000);
+  }
+
+  fetch(API_URL + '?type=' + SHIFT_TYPE, { method:'GET' })
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      if (slowTimer) clearTimeout(slowTimer);
+      if (!data.ok) {
+        if (cached) { setStatus('err', '更新失敗，目前顯示的是上次同步的資料'); return; }
+        setStatus('err', '載入失敗：' + (data.error || '未知錯誤'));
+        return;
+      }
+      lastRows = data.rows;
+      writeCache(lastRows);
+      render(lastRows);
+      applySearchFilter();
+      setStatus('ok', '已同步');
+    })
+    .catch(function(){
+      if (slowTimer) clearTimeout(slowTimer);
+      if (cached) { setStatus('err', '更新失敗，目前顯示的是上次同步的資料'); return; }
+      setStatus('err', '無法連線至試算表，請確認網路連線或稍後再試');
+    });
+}
+
+locsEl.addEventListener('click', function(e){
+  var btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  e.preventDefault(); // avoid toggling the <details> when clicking a button inside <summary>'s sibling
+  var act = btn.getAttribute('data-act');
+  if (act === 'fill') {
+    pendingRow = { date: btn.getAttribute('data-date'), location: btn.getAttribute('data-location') };
+    fillTitle.textContent = '填入姓名';
+    fillSub.textContent = btn.getAttribute('data-label') + ' ・ ' + pendingRow.location;
+    fillName.value = '';
+    dialog.showModal();
+    setTimeout(function(){ fillName.focus(); }, 50);
+  } else if (act === 'clear') {
+    var date = btn.getAttribute('data-date'), location = btn.getAttribute('data-location'), name = btn.getAttribute('data-name');
+    if (!confirm('確定要取消「' + name + '」在 ' + date + ' ' + location + ' 的登記嗎？')) return;
+    submitAction({ date:date, location:location, name:name, action:'clear' }, btn);
+  }
+});
+
+fillCancel.addEventListener('click', function(){ dialog.close(); pendingRow = null; });
+
+fillForm.addEventListener('submit', function(e){
+  e.preventDefault();
+  var name = fillName.value.trim();
+  if (!name) { fillName.focus(); return; }
+  if (!pendingRow) { dialog.close(); return; }
+  dialog.close();
+  submitAction({ date: pendingRow.date, location: pendingRow.location, name: name, action:'fill' });
+  pendingRow = null;
+});
+
+jumpTodayBtn.addEventListener('click', jumpToToday);
+
+function submitAction(payload, btnEl){
+  if (btnEl) btnEl.disabled = true;
+  setStatus('', '送出中…');
+  payload.type = SHIFT_TYPE;
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 避免 CORS 預檢
+    body: JSON.stringify(payload)
+  })
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      if (!data.ok) {
+        var msg = '操作失敗';
+        if (data.error === 'full') msg = '這個時段已經額滿，畫面已更新';
+        else if (data.error === 'name_mismatch') msg = '這筆登記不是這個姓名，無法取消';
+        else if (data.error === 'busy_try_again') msg = '系統忙碌，請稍後再試一次';
+        else if (data.error === 'not_found') msg = '找不到這個日期與地點的排班列，請確認試算表';
+        else if (data.error === 'empty_name') msg = '請輸入姓名';
+        else if (data.error) msg = '操作失敗：' + data.error;
+        setStatus('err', msg);
+        loadData();
+        return;
+      }
+      lastRows = data.rows;
+      writeCache(lastRows);
+      var openLocs = Array.prototype.map.call(locsEl.querySelectorAll('.loc-card[open]'), function(c){ return c.getAttribute('data-loc-name'); });
+      render(lastRows);
+      applySearchFilter();
+      openLocs.forEach(function(name){
+        var card = locsEl.querySelector('.loc-card[data-loc-name="' + cssEscape(name) + '"]');
+        if (card) card.open = true;
+      });
+      setStatus('ok', '已更新');
+    })
+    .catch(function(){
+      setStatus('err', '網路異常，請稍後再試');
+    });
+}
+
+function cssEscape(s){
+  if (window.CSS && CSS.escape) return CSS.escape(s);
+  return String(s).replace(/["\\]/g, '\\$&');
+}
+
+loadData();
+</script>
+</body>
+</html>
