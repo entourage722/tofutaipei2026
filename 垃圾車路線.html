@@ -81,6 +81,7 @@
 
   .loc-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow);margin-bottom:12px;scroll-margin-top:16px;overflow:hidden;}
   .loc-card[open]{border-color:var(--line-strong);}
+  .loc-card.is-today{border-color:var(--today-ring);}
   .loc-card summary{list-style:none;cursor:pointer;padding:15px 18px;display:flex;align-items:center;gap:12px;}
   .loc-card summary::-webkit-details-marker{display:none;}
   .loc-card summary .chev{flex:0 0 auto;font-size:12px;color:var(--ink-faint);transition:transform .15s ease;}
@@ -135,13 +136,13 @@
 
   <header class="hero">
     <h1>垃圾車路線</h1>
-    <p>先找到站點，點開即可看到該站點的排班日期。每個日期的名額上限依試算表設定（未設定則預設 4 人），點「+ 填入姓名」登記，填錯可點姓名旁的 × 取消。</p>
+    <p>先找到日期，點開即可看到當天有哪些站點。每個站點的名額上限依試算表設定（未設定則預設 4 人），點「+ 填入姓名」登記，填錯可點姓名旁的 × 取消。</p>
   </header>
 
   <div id="statusBar" class="status-bar"><span class="status-dot"></span><span id="statusText">連線中…</span></div>
 
   <div class="search-wrap">
-    <input type="text" id="locSearch" class="search-input" placeholder="🔍 搜尋站點名稱…">
+    <input type="text" id="locSearch" class="search-input" placeholder="🔍 搜尋站點名稱（會篩選出有該站點的日期）…">
   </div>
 
   <div id="locs"></div>
@@ -196,41 +197,35 @@ function setStatus(kind, text){
   statusText.textContent = text;
 }
 
-function groupByLocation(rows){
+// 將 "9/7" 或 "2026-9-7" 中的單個數字補齊為雙位數 "09/07"，避免 ASCII/localeCompare 排序錯誤
+function toSortableDate(dStr) {
+  if (!dStr) return '';
+  return dStr.replace(/\d+/g, function(num) {
+    return num.length === 1 ? '0' + num : num;
+  });
+}
+
+function groupByDate(rows){
   var map = {}, order = [];
   rows.forEach(function(r){
-    if (!map[r.location]) {
-      map[r.location] = { location: r.location, dates: [], minDate: r.date || '' };
-      order.push(r.location);
+    var key = r.date || '';
+    if (!map[key]) {
+      map[key] = { date: r.date, dateLabel: r.dateLabel, rows: [] };
+      order.push(key);
     }
-    map[r.location].dates.push(r);
+    map[key].rows.push(r);
   });
 
-  // 將 "9/7" 或 "2026-9-7" 中的單個數字補齊為雙位數 "09/07"，避免 ASCII/localeCompare 排序錯誤
-  var toSortableDate = function(dStr) {
-    if (!dStr) return '';
-    return dStr.replace(/\d+/g, function(num) {
-      return num.length === 1 ? '0' + num : num;
-    });
-  };
-
-  var groups = order.map(function(loc){
-    var g = map[loc];
-    g.dates.sort(function(a, b){
-      return toSortableDate(a.date).localeCompare(toSortableDate(b.date));
-    });
-    if (g.dates.length > 0) {
-      g.minDate = g.dates[0].date || '';
-    }
+  var groups = order.map(function(key){
+    var g = map[key];
+    // 同一天內依站點名稱排序
+    g.rows.sort(function(a, b){ return a.location.localeCompare(b.location, 'zh-Hant'); });
     return g;
   });
 
-  // 依每個站點最早的排班日期排序（日期相同時再依站點名稱排序，避免順序不穩定）
+  // 依日期排序（由近到遠）
   groups.sort(function(a, b) {
-    var dateA = toSortableDate(a.minDate);
-    var dateB = toSortableDate(b.minDate);
-    if (dateA !== dateB) return dateA.localeCompare(dateB);
-    return a.location.localeCompare(b.location, 'zh-Hant');
+    return toSortableDate(a.date).localeCompare(toSortableDate(b.date));
   });
 
   return groups;
@@ -250,20 +245,18 @@ function render(rows){
     jumpTodayBtn.hidden = true;
     return;
   }
-  var locs = groupByLocation(rows);
+  var dates = groupByDate(rows);
 
-  locsEl.innerHTML = locs.map(function(loc){
-    var filledTotal = 0, slotTotal = 0, hasToday = false;
-    var singleDate = loc.dates.length === 1;
-    var dateRows = loc.dates.map(function(s){
+  locsEl.innerHTML = dates.map(function(d){
+    var filledTotal = 0, slotTotal = 0;
+    var isToday = d.date === today;
+    var locRows = d.rows.map(function(s){
       var names = s.names || [];
       var filled = names.filter(function(n){ return n && String(n).trim(); });
       var count = filled.length;
       var cap = s.capacity || MAX_SLOTS;
       var full = count >= cap;
       filledTotal += count; slotTotal += cap;
-      var isToday = s.date === today;
-      if (isToday) hasToday = true;
       var chips = filled.map(function(n){
         return '<span class="claimed-name">' + escapeHtml(n) +
           '<button class="btn ghost" type="button" data-act="clear" data-date="' + s.date + '" data-location="' + escapeAttr(s.location) + '" data-name="' + escapeAttr(n) + '" aria-label="取消 ' + escapeAttr(n) + '">×</button></span>';
@@ -271,13 +264,13 @@ function render(rows){
       var addBtn = full ? '' :
         '<button class="btn primary add" type="button" data-act="fill" data-date="' + s.date + '" data-location="' + escapeAttr(s.location) + '" data-label="' + escapeAttr(s.dateLabel) + '">+ 填入姓名</button>';
       var timeHtml = (s.start && s.end) ? ('<span class="dr-time">' + s.start + '–' + s.end + '</span>') : '';
-      var dateTimeHtml = singleDate ? '' : ('<span class="dr-date">' + escapeHtml(s.dateLabel) + '</span>' + timeHtml);
-      var mapQuery = s.address || loc.location;
+      var locTimeHtml = '<span class="dr-date">' + escapeHtml(s.location) + '</span>' + timeHtml;
+      var mapQuery = s.address || s.location;
       var mapUrl = 'https://maps.google.com/?q=' + encodeURIComponent(mapQuery);
-      var addressHtml = '<div class="dr-address"><a href="' + mapUrl + '" target="_blank" rel="noopener">📍 ' + escapeHtml(s.address || loc.location) + '</a></div>';
+      var addressHtml = '<div class="dr-address"><a href="' + mapUrl + '" target="_blank" rel="noopener">📍 ' + escapeHtml(s.address || s.location) + '</a></div>';
       return (
-        '<div class="date-row' + (isToday ? ' is-today' : '') + '" id="row-' + escapeAttr(s.location) + '-' + s.date + '">' +
-          '<div class="dr-head">' + dateTimeHtml + (isToday ? '<span class="today-badge">今天</span>' : '') +
+        '<div class="date-row" data-location="' + escapeAttr(s.location) + '" id="row-' + escapeAttr(s.location) + '-' + s.date + '">' +
+          '<div class="dr-head">' + locTimeHtml +
             '<span class="dr-count' + (full ? ' full' : '') + '">' + count + '/' + cap + '</span></div>' +
           addressHtml +
           '<div class="name-list">' + chips + addBtn + '</div>' +
@@ -285,19 +278,16 @@ function render(rows){
       );
     }).join('');
 
-    var dateLabels = loc.dates.map(function(s){
-      var t = (s.start && s.end) ? (' ' + s.start + '–' + s.end) : '';
-      return s.dateLabel + t;
-    }).join('、');
-    var metaText = escapeHtml(dateLabels) + '・' + filledTotal + '/' + slotTotal + ' 已登記';
+    var metaText = d.rows.length + ' 個站點・' + filledTotal + '/' + slotTotal + ' 已登記';
+    var dateSlug = String(d.date).replace(/\//g, '-');
     return (
-      '<details class="loc-card" id="loc-' + escapeAttr(loc.location) + '" data-loc-name="' + escapeAttr(loc.location) + '">' +
+      '<details class="loc-card' + (isToday ? ' is-today' : '') + '" id="date-' + escapeAttr(dateSlug) + '" data-date="' + escapeAttr(d.date) + '">' +
         '<summary>' +
           '<span class="chev">▶</span>' +
-          '<span class="loc-title-wrap"><span class="loc-title">' + escapeHtml(loc.location) + '</span>' +
-          '<div class="loc-meta' + (hasToday ? ' has-today' : '') + '">' + metaText + (hasToday ? '・含今天' : '') + '</div></span>' +
+          '<span class="loc-title-wrap"><span class="loc-title">' + escapeHtml(d.dateLabel) + '</span>' + (isToday ? '<span class="today-badge" style="margin-left:8px;">今天</span>' : '') +
+          '<div class="loc-meta' + (isToday ? ' has-today' : '') + '">' + metaText + '</div></span>' +
         '</summary>' +
-        '<div class="loc-body">' + dateRows + '</div>' +
+        '<div class="loc-body">' + locRows + '</div>' +
       '</details>'
     );
   }).join('');
@@ -339,24 +329,31 @@ function applySearchFilter(){
   var q = locSearch.value.trim();
   var cards = locsEl.querySelectorAll('.loc-card');
   cards.forEach(function(card){
-    var name = card.getAttribute('data-loc-name') || '';
-    var match = !q || name.indexOf(q) !== -1;
-    card.hidden = !match;
-    if (match && q) card.open = true;
+    var rows = card.querySelectorAll('.date-row');
+    if (!q) {
+      card.hidden = false;
+      rows.forEach(function(row){ row.hidden = false; });
+      return;
+    }
+    var anyMatch = false;
+    rows.forEach(function(row){
+      var name = row.getAttribute('data-location') || '';
+      var match = name.indexOf(q) !== -1;
+      row.hidden = !match;
+      if (match) anyMatch = true;
+    });
+    card.hidden = !anyMatch;
+    if (anyMatch) card.open = true;
   });
 }
 
 locSearch.addEventListener('input', applySearchFilter);
 
 function jumpToToday(){
-  var today = todayIso();
-  var row = null;
-  var rows = locsEl.querySelectorAll('.date-row.is-today');
-  if (rows.length) row = rows[0];
-  if (!row) return;
-  var card = row.closest('.loc-card');
-  if (card) card.open = true;
-  row.scrollIntoView({ block:'center', behavior:'smooth' });
+  var card = locsEl.querySelector('.loc-card.is-today');
+  if (!card) return;
+  card.open = true;
+  card.scrollIntoView({ block:'center', behavior:'smooth' });
 }
 
 function loadData(){
@@ -454,11 +451,11 @@ function submitAction(payload, btnEl){
       }
       lastRows = data.rows;
       writeCache(lastRows);
-      var openLocs = Array.prototype.map.call(locsEl.querySelectorAll('.loc-card[open]'), function(c){ return c.getAttribute('data-loc-name'); });
+      var openDates = Array.prototype.map.call(locsEl.querySelectorAll('.loc-card[open]'), function(c){ return c.getAttribute('data-date'); });
       render(lastRows);
       applySearchFilter();
-      openLocs.forEach(function(name){
-        var card = locsEl.querySelector('.loc-card[data-loc-name="' + cssEscape(name) + '"]');
+      openDates.forEach(function(date){
+        var card = locsEl.querySelector('.loc-card[data-date="' + cssEscape(date) + '"]');
         if (card) card.open = true;
       });
       setStatus('ok', '已更新');
