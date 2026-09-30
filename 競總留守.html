@@ -99,12 +99,16 @@
   .slot-tag{flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;min-width:150px;}
   .slot-tag .swatch{width:10px;height:10px;border-radius:3px;display:inline-block;}
   .slot-tag .t{color:var(--ink-faint);font-weight:400;font-family:'IBM Plex Mono',monospace;font-size:11.5px;}
+  .slot-tag .cnt{color:var(--ink-faint);font-weight:400;font-family:'IBM Plex Mono',monospace;font-size:11px;}
   .slot-state{flex:1 1 auto;display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:wrap;}
 
   .empty-name{color:var(--ink-faint);font-size:13px;}
   .empty-window{color:var(--ink-faint);font-size:13px;text-align:center;padding:30px 0;}
+  .full-badge{color:var(--ink-faint);font-size:12.5px;font-weight:600;padding:6px 10px;}
 
-  .claimed-name{font-size:14px;font-weight:600;padding:6px 12px;border-radius:999px;background:var(--surface-2);}
+  .claimed-name{font-size:14px;font-weight:600;padding:6px 12px;border-radius:999px;background:var(--surface-2);display:inline-flex;align-items:center;gap:6px;}
+  .claimed-name .x{cursor:pointer;color:var(--ink-faint);font-weight:400;border:none;background:none;font-size:13px;padding:0;line-height:1;}
+  .claimed-name .x:hover{color:var(--danger);}
   .btn{font-family:inherit;font-size:13px;font-weight:600;border-radius:999px;padding:7px 15px;cursor:pointer;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);}
   .btn:hover{border-color:var(--ink-soft);}
   .btn:disabled{opacity:.5;cursor:not-allowed;}
@@ -132,7 +136,7 @@
   <header class="hero">
     <span class="eyebrow">競選總部留守</span>
     <h1>競總留守班表</h1>
-    <p>點選想認領的班次並輸入姓名即可。每個班次僅能有一人認領，若填錯可自行取消。</p>
+    <p>點選想認領的班次並輸入姓名即可。每個班次最多開放 3 人登記，額滿後才會關閉；若填錯可自行取消。</p>
   </header>
 
   <div class="legend">
@@ -252,19 +256,24 @@ function render(rows){
     var isToday = day.date === today;
     var slots = day.stops.map(function(s){
       var meta = SHIFT_META[s.shift] || {color:'var(--ink-faint)'};
-      var stateHtml;
-      if (s.name) {
-        stateHtml =
-          '<span class="claimed-name">' + escapeHtml(s.name) + '</span>' +
-          '<button class="btn ghost" data-act="clear" data-date="' + s.date + '" data-shift="' + s.shift + '" data-name="' + escapeAttr(s.name) + '">取消</button>';
-      } else {
-        stateHtml =
-          '<span class="empty-name">尚未認領</span>' +
-          '<button class="btn primary" data-act="claim" data-date="' + s.date + '" data-shift="' + s.shift + '" data-time="' + escapeAttr(s.time) + '" data-label="' + escapeAttr(day.dateLabel) + '">認領</button>';
-      }
+      var names = s.names || (s.name ? [s.name] : []);
+      var capacity = s.capacity || 1;
+      var chips = names.map(function(n){
+        return (
+          '<span class="claimed-name">' + escapeHtml(n) +
+            '<button class="x" data-act="clear" data-date="' + s.date + '" data-shift="' + s.shift + '" data-name="' + escapeAttr(n) + '" title="取消">×</button>' +
+          '</span>'
+        );
+      }).join('');
+      var actionHtml = names.length < capacity
+        ? '<button class="btn primary" data-act="claim" data-date="' + s.date + '" data-shift="' + s.shift + '" data-time="' + escapeAttr(s.time) + '" data-label="' + escapeAttr(day.dateLabel) + '">認領</button>'
+        : '<span class="full-badge">已額滿</span>';
+      var stateHtml =
+        (names.length ? chips : '<span class="empty-name">尚未認領</span>') +
+        actionHtml;
       return (
         '<div class="slot-row">' +
-          '<span class="slot-tag"><span class="swatch" style="background:' + meta.color + '"></span>' + s.shift + '<span class="t">' + s.time + '</span></span>' +
+          '<span class="slot-tag"><span class="swatch" style="background:' + meta.color + '"></span>' + s.shift + '<span class="t">' + s.time + '</span><span class="cnt">' + names.length + '/' + capacity + '</span></span>' +
           '<span class="slot-state">' + stateHtml + '</span>' +
         '</div>'
       );
@@ -402,8 +411,9 @@ function submitAction(payload, btnEl){
     .then(function(data){
       if (!data.ok) {
         var msg = '操作失敗';
-        if (data.error === 'already_taken') msg = '這個班次剛被 ' + (data.takenBy || '別人') + ' 認領走了，畫面已更新';
-        else if (data.error === 'name_mismatch') msg = '這個班次不是你認領的，無法取消';
+        if (data.error === 'shift_full') msg = '這個班次剛額滿了，畫面已更新';
+        else if (data.error === 'duplicate_name') msg = '你已經登記過這個班次了';
+        else if (data.error === 'name_mismatch') msg = '這個班次不是你登記的，無法取消';
         else if (data.error === 'busy_try_again') msg = '系統忙碌，請稍後再試一次';
         else if (data.error === 'not_found') msg = '找不到這個日期的班次列，請確認試算表';
         else if (data.error) msg = '操作失敗：' + data.error;
