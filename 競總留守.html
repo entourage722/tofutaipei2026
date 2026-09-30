@@ -139,7 +139,7 @@
     <span class="item"><span class="swatch" style="background:var(--shift-1)"></span>上午 09:00–13:00</span>
     <span class="item"><span class="swatch" style="background:var(--shift-2)"></span>下午 13:00–17:00</span>
   </div>
-  <div class="scope-note">僅顯示本週與下週的平日班次，六、日暫不開放填班</div>
+  <div class="scope-note">顯示本週與下週的班次（含例假日）</div>
 
   <div id="statusBar" class="status-bar"><span class="status-dot"></span><span id="statusText">連線中…</span></div>
 
@@ -198,7 +198,7 @@ function setStatus(kind, text){
   statusText.textContent = text;
 }
 
-// ==== 僅顯示本週＋下週的平日（週一～週五），六日先不開放 ====
+// ==== 顯示本週＋下週（共 14 天），含六日 ====
 function parseIsoDate(iso){
   var parts = iso.split('-');
   return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
@@ -220,8 +220,6 @@ function filterRows(rows){
   var win = getDisplayWindow();
   return rows.filter(function(r){
     var d = parseIsoDate(r.date);
-    var dow = d.getDay();
-    if (dow === 0 || dow === 6) return false; // 先不開放假日
     return d >= win.start && d <= win.end;
   });
 }
